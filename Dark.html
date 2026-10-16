@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gallery</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #000000;
+      color: #ffffff;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .font-syne { font-family: 'Syne', sans-serif; }
+
+    .white-btn {
+      background: #ffffff;
+      color: #000000;
+      transition: all 0.2s ease;
+    }
+
+    .white-btn:hover {
+      background: #e5e7eb;
+      transform: translateY(-1px);
+    }
+
+    .app-tile {
+      background: #0a0a0a;
+      border: 1px solid #262626;
+      border-radius: 1.5rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: #333333; border-radius: 10px; }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen relative antialiased">
+
+  <header class="sticky top-0 z-40 bg-black/90 border-b border-zinc-800 px-5 py-3 backdrop-blur-md">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <h1 class="text-base font-extrabold font-syne text-white tracking-wide">
+        Gallery
+      </h1>
+      <label class="white-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        <span>Subir</span>
+        <input type="file" id="imageInput" accept="image/*" multiple class="hidden" onchange="handleImages(this)">
+      </label>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-2xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-4">
+
+    <div id="emptyState" class="app-tile w-full p-10 text-center flex flex-col items-center justify-center gap-3">
+      <i data-lucide="image" class="w-8 h-8 text-zinc-500"></i>
+      <p class="text-xs text-zinc-400 font-bold">No hay imágenes en la galería.</p>
+    </div>
+
+    <div id="galleryGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+
+  </main>
+
+  <div id="viewerModal" class="fixed inset-0 z-50 hidden bg-black/95 flex flex-col justify-between p-4">
+    <div class="flex justify-end p-2">
+      <button onclick="closeViewer()" class="p-2 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div class="flex-1 flex items-center justify-center p-2">
+      <img id="viewerImg" src="" class="max-h-[80vh] max-w-full rounded-xl object-contain">
+    </div>
+    <div class="flex justify-center pb-4">
+      <a id="downloadBtn" download="imagen.jpg" class="white-btn px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2">
+        <i data-lucide="download" class="w-4 h-4"></i> Descargar
+      </a>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      loadImages();
+    });
+
+    function handleImages(input) {
+      if (input.files && input.files.length > 0) {
+        const readerList = [];
+        for (let file of input.files) {
+          readerList.push(new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+          }));
+        }
+
+        Promise.all(readerList).then(results => {
+          const stored = JSON.parse(localStorage.getItem('dark_gallery_imgs') || '[]');
+          const updated = [...results, ...stored];
+          localStorage.setItem('dark_gallery_imgs', JSON.stringify(updated));
+          loadImages();
+        });
+      }
+    }
+
+    function loadImages() {
+      const stored = JSON.parse(localStorage.getItem('dark_gallery_imgs') || '[]');
+      const grid = document.getElementById('galleryGrid');
+      const empty = document.getElementById('emptyState');
+      grid.innerHTML = '';
+
+      if (stored.length === 0) {
+        empty.classList.remove('hidden');
+        grid.classList.add('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      stored.forEach((src, index) => {
+        const div = document.createElement('div');
+        div.className = 'relative aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 group cursor-pointer';
+        div.innerHTML = `
+          <img src="${src}" class="w-full h-full object-cover">
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+            <i data-lucide="maximize-2" class="w-5 h-5 text-white"></i>
+          </div>
+        `;
+        div.onclick = () => openViewer(src);
+        grid.appendChild(div);
+      });
+
+      lucide.createIcons();
+    }
+
+    function openViewer(src) {
+      document.getElementById('viewerImg').src = src;
+      document.getElementById('downloadBtn').href = src;
+      document.getElementById('viewerModal').classList.remove('hidden');
+      document.getElementById('viewerModal').classList.add('flex');
+    }
+
+    function closeViewer() {
+      document.getElementById('viewerModal').classList.add('hidden');
+      document.getElementById('viewerModal').classList.remove('flex');
+    }
+  </script>
+</body>
+</html>
